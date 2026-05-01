@@ -1,0 +1,9 @@
+name = "SPMmisc"
+uuid = "88903119-a3e4-409c-afa7-d91d08484514"
+authors = ["John Ashburner"]
+version = "0.1.0"
+
+[deps]
+Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+NIfTI = "a3a9e032-41b5-5fc4-967a-a6b7a19844d3"
