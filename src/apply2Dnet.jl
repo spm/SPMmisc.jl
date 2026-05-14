@@ -1,32 +1,5 @@
 using Flux, JLD2, NIfTI
-
-function MorphoUnet(c::Vector; cout=c[1])
-    nonlin = identity
-    WR     =          Conv((4,4), c[1]=>c[2],  bias=true,  stride=2, pad=(1,1,1,1))
-    WP     = ConvTranspose((4,4), c[2]=>cout,  bias=true,  stride=2, pad=(1,1,1,1))
-   #idinit(n) = (t=randn(Float32, 3, 3, n, n)*sqrt(1f0/(3*3*n))/2; t[2,2,:,:] .= t[2,2,:,:] + I; t)
-    idinit(n) = randn(Float32, 3, 3, n, n)*sqrt(1f0/(3*3*n))/2
-    M(n)   = SkipConnection(Conv(idinit(n), true, pad=1), (a,b)-> max.(a,b))
-
-    nrm = InstanceNorm(c[2])
-
-    if length(c)>2
-        net = Chain(WR, nrm, M(c[2]), M(c[2]), M(c[2]), M(c[2]),
-                    SkipConnection(MorphoUnet(c[2:end]), +), WP)
-    else
-        net = Chain(WR, nrm, M(c[2]), M(c[2]), M(c[2]), M(c[2]), WP)
-    end
-    return net
-end
-
-function scalnorm(x)
-    s = 1 ./ sqrt.(sum(x.^2, dims=(1,2)) / prod(size(x)[1:2]) .+ 1)
-    return(x .* s)
-end
-
-function pMorphoUnet(c::Vector; cout=c[1])
-    net = Chain(scalnorm, MorphoUnet(c, cout=cout)...)
-end
+include("networks.jl")
 
 function loadnet(filename)
     print("Loading ", filename)
