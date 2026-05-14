@@ -3,7 +3,7 @@ function MorphoUnet(c::Vector; cout=c[1])
     nonlin = identity
     WR     =          Conv((4,4), c[1]=>c[2],  bias=true,  stride=2, pad=(1,1,1,1))
     WP     = ConvTranspose((4,4), c[2]=>cout,  bias=true,  stride=2, pad=(1,1,1,1))
-    idinit(n) = (t=randn(Float32, 3, 3, n, n)*sqrt(1f0/(3*3*n))/2; t[2,2,:,:] .= t[2,2,:,:] + I; t)
+    idinit(n) = (t=randn(Float32, 3, 3, n, n)*sqrt(1f0/(3*3*n))/2; # t[2,2,:,:] .= t[2,2,:,:] + I; t)
     M(n)   = SkipConnection(Conv(idinit(n), true, pad=1), (a,b)-> max.(a,b))
 
     nrm = InstanceNorm(c[2])
