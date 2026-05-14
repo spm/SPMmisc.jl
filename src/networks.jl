@@ -42,7 +42,7 @@ function gmmadjust(x, q)
     r2   = (x.-m).^2
     v    = (sum(p.*r2, dims=dims) .+ 1f-3)./s0
     ll   = .-r2 ./ (2v) .- log.(v)./2 .+ q
-    #ll  = ll .- lse(ll)
+    ll   = ll .- lse(ll)
 end
 
 function experimental0(nf; cout=nf[1])
