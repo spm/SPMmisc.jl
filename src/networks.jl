@@ -34,6 +34,7 @@ function lse(x)
 end
 
 function gmmadjust(x, q)
+    @assert(size(x)[ndims(x)-1] == 1)
     dims = 1:(ndims(x)-2)
     p    = exp.(q .- lse(q))
     s0   = sum(p,    dims=dims) .+ 1f-3
@@ -45,26 +46,26 @@ function gmmadjust(x, q)
     ll   = ll .- lse(ll)
 end
 
-function experimental0(nf; cout=nf[1])
+function experimental0(nf; cout=nf[1], cmid=8)
     nf2    = deepcopy(nf)
-    nf2[1] = 8;
-    unet1  = pMorphoUnet(nf ; cout=8)
+    nf2[1] = cmid
+    unet1  = pMorphoUnet(nf ; cout=cmid)
     unet2  =  MorphoUnet(nf2; cout=cout)
     net    = Chain(unet1, unet2)
 end
 
-function experimental1(nf; cout=nf[1])
+function experimental1(nf; cout=nf[1], cmid=8)
     nf2    = deepcopy(nf)
-    nf2[1] = 8;
-    unet1  = pMorphoUnet(nf ; cout=8)
+    nf2[1] = cmid
+    unet1  = pMorphoUnet(nf ; cout=cmid)
     unet2  =  MorphoUnet(nf2; cout=cout)
     net    = Chain(SkipConnection(unet1,gmmadjust), unet2)
 end
 
-function experimental2(nf; cout=nf[1])
+function experimental2(nf; cout=nf[1], cmid=8)
     nf2    = deepcopy(nf)
-    nf2[1] = 8;
-    unet1  = pMorphoUnet(nf ; cout=8)
+    nf2[1] = cmid
+    unet1  = pMorphoUnet(nf ; cout=cmid)
     unet2  =  MorphoUnet(nf2; cout=cout)
     net    = SkipConnection(Chain(SkipConnection(unet1, gmmadjust), unet2), gmmadjust)
 end
