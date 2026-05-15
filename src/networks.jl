@@ -33,7 +33,7 @@ function lse(x)
     l   = log.(sum(exp.(x .- mx),dims=dim)) .+ mx
 end
 
-function gmmadjust(x, q)
+function gmmadjust(q, x)
     @assert(size(x)[ndims(x)-1] == 1)
     dims = 1:(ndims(x)-2)
     p    = exp.(q .- lse(q))
