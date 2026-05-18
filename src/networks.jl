@@ -41,9 +41,10 @@ function gmmadjust(q, x)
     s1   = sum(p.*x, dims=dims)
     m    = s1./s0
     r2   = (x.-m).^2
-    v    = (sum(p.*r2, dims=dims) .+ 1f-3)./s0
-    ll   = .-r2 ./ (2v) .- log.(v)./2 .+ q
-    ll   = ll .- lse(ll)
+    v    = (sum(p.*r2, dims=dims) .+ 1f-3)
+    v    = (sum(v)/sum(s0) .+ v)./(s0 .+ 1)
+    y    = q .-r2 ./ (2v) .- log.(v)./2
+    y    = y .- lse(y)
 end
 
 function experimental0(nf; cout=nf[1], cmid=8)
