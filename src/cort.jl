@@ -1,6 +1,5 @@
 using NIfTI
 nii = NIfTI
-include("thin.jl")
 include("lapl.jl")
 include("morphological.jl")
 include("mrf_funs.jl")
