@@ -1,7 +1,3 @@
-using Flux, JLD2, NIfTI
-include("networks.jl")
-
-
 function nan2zero!(x)
     x[isnan.(x)] .= 0
     x

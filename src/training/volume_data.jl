@@ -1,7 +1,3 @@
-using Random
-using NIfTI
-include("random_patch.jl")
-
 function header(P)
     io = open(P,"r")
     hdr, swapped = NIfTI.read_header(io)

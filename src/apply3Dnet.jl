@@ -1,9 +1,3 @@
-using Flux, JLD2, NIfTI
-using SPMmisc
-include("networks.jl")
-include("loadnet.jl")
-
-
 function segment3D(P,net,sett)
     print(basename(P)," ")
     nii = niread(P)

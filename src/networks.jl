@@ -103,7 +103,32 @@ function scalnorm(x)
     return(x .* s)
 end
 
+"""
+    loadnet(filename)
 
-export RUnet2, pRUnet2, RUnet3, pRUnet3, BUnet3, pBUnet3, scalnorm
+Load a neural network from a file.
+Network architectures are described by some function that must
+be avaiable at the time of loading.
+"""
+function loadnet(filename)
+    print("Loading ", filename)
+    sett = JLD2.load(filename, "settings")
+    sett = (sett[1:2]..., pBUnet3) # Temporary fix
+    net  = sett[3](sett[1]...; sett[2]...)
+    W1   = JLD2.load(filename, "W")
+    W0   = Flux.trainables(net)
+    for i=1:length(W0)
+        W0[i] .= W1[i]
+    end
+    print("\n")
+    return net, sett
+end
+
+function savenet(net, filename, sett)
+    W = Flux.trainables(net)
+    JLD2.jldsave(filename; W = W, settings=sett)
+end
+
+export loadnet, RUnet2, pRUnet2, RUnet3, pRUnet3, BUnet3, pBUnet3, scalnorm
 
 

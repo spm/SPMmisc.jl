@@ -1,12 +1,3 @@
-using Zygote, Flux, CUDA, cuDNN, JLD2, Optimisers
-using NIfTI, Printf
-using Statistics, Random
-using SPMmisc
-include("train_funs.jl")
-include("volume_data.jl")
-include("../networks.jl")
-include("tadam.jl")
-
 function get_cort(ind=[])
     dr = "/home/john/cortex/seg"
     f0 = readdir(dr,join=true,sort=true)
