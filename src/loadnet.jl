@@ -1,4 +1,5 @@
 using JLD2, Flux
+include("networks.jl")
 
 """
     loadnet(filename)
