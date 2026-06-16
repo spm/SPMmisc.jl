@@ -1,19 +1,6 @@
 using Flux, JLD2, NIfTI
 include("networks.jl")
 
-function loadnet(filename)
-    print("Loading ", filename)
-    sett = JLD2.load(filename, "settings")
-    net  = sett[3](sett[1]...; sett[2]...)
-    W1   = JLD2.load(filename, "W")
-    W0   = Flux.trainables(net)
-    for i=1:length(W0)
-        W0[i] .= W1[i]
-    end
-    print("\n")
-    return net, sett
-end
-
 
 function nan2zero!(x)
     x[isnan.(x)] .= 0
@@ -21,7 +8,7 @@ function nan2zero!(x)
 end
 
 
-function segment(P,net,sett)
+function segment2D(P,net,sett)
     print(basename(P)," ")
     nii = niread(P)
     X   = Float32.(nii.raw[:,:,:,1])
@@ -59,10 +46,16 @@ function segment(P,net,sett)
     return fname
 end
 
+"""
+    apply2Dnet(network::String,images::Array{String})
+
+Apply a 2D segmentation network to slices of images. Results
+are saved to a 4D NIfTI file called c00*.nii.
+"""
 function apply2Dnet(network::String,images::Array{String})
     net,sett = loadnet(network)
     for f in images
-        segment(f,net,sett)
+        segment2D(f,net,sett)
     end
 end
 
