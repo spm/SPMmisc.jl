@@ -1,7 +1,7 @@
 
 function RUnet2(c::Vector; cout=c[1])
     nonlin = identity
-    WR     =          Conv((4,4), c[1]=>c[2],  bias=true,  stride=2, pad=(1,1,1,1))
+    WR     =          Conv((4,4), c[1]=>c[2],  bias=false, stride=2, pad=(1,1,1,1))
     WP     = ConvTranspose((4,4), c[2]=>cout,  bias=true,  stride=2, pad=(1,1,1,1))
     idinit(n) = randn(Float32, 3, 3, n, n)*sqrt(1f0/(3*3*n))/2;
     M()    = SkipConnection(Conv(idinit(c[2]), true, pad=1), (a,b)-> max.(a,b))
@@ -21,14 +21,7 @@ function pRUnet2(c::Vector; cout=c[1])
     net = Chain(scalnorm, RUnet2(c, cout=cout)...)
 end
 
-
-"""
-    RUnet3(c::Vector; cout=c[1])
-
-3D residual U-net, using 2x2x2 filters for restriction and prolongation.
-Note that image dimensions must be even, except for the deepest layer.
-"""
-function RUnet3(c::Vector; cout=c[1])
+function RUnet_old3(c::Vector; cout=c[1])
     WR     =          Conv((2,2,2), c[1]=>c[2],  bias=true,  stride=2)
     WP     = ConvTranspose((2,2,2), c[2]=>cout,  bias=true,  stride=2)
 
@@ -39,14 +32,37 @@ function RUnet3(c::Vector; cout=c[1])
     nrm = InstanceNorm(c[2])
 
     if length(c)>2
-        net = Chain(WR, nrm, M(), M(), SkipConnection(RUnet3(c[2:end]), +),
+        net = Chain(WR, nrm, M(), M(), SkipConnection(RUnet_old3(c[2:end]), +),
                     M(), M(), WP)
     else
         net = Chain(WR, nrm, M(), M(), M(), M(), WP)
     end
     return net
 end
+function pRUnet_old3(c::Vector; cout=c[1])
+    net = Chain(scalnorm, RUnet_old3(c, cout=cout)...)
+end
 
+
+"""
+    RUnet3(c::Vector; cout=c[1])
+
+3D residual U-net, using 2x2x2 filters for restriction and prolongation.
+Note that image dimensions must be even, except for the deepest layer.
+"""
+function RUnet3(c::Vector; cout=c[1])
+    WR  =          Conv((2,2,2), c[1]=>c[2],  bias=false, stride=2)
+    WP  = ConvTranspose((2,2,2), c[2]=>cout,  bias=true,  stride=2)
+    M() = SkipConnection(Chain(relu, Conv((3,3,3), c[2]=>c[2], bias=true, pad=1)), +)
+    nrm = InstanceNorm(c[2])
+
+    if length(c)>2
+        net = Chain(WR, nrm, M(), M(), SkipConnection(RUnet3(c[2:end]), +), M(), M(), WP)
+    else
+        net = Chain(WR, nrm, M(), M(), M(), M(), WP)
+    end
+    return net
+end
 
 """
     pRUnet3(c::Vector; cout=c[1])
@@ -64,18 +80,13 @@ Bigger 3D residual U-net, using 4x4x4 filters for restriction and prolongation.
 Note that image dimensions must be even, except for the deepest layer.
 """
 function BUnet3(c::Vector; cout=c[1])
-    WR     =          Conv((4,4,4), c[1]=>c[2],  bias=true,  stride=2, pad=1)
-    WP     = ConvTranspose((4,4,4), c[2]=>cout,  bias=true,  stride=2, pad=1)
-
-    idinit(n) = (t=randn(Float32, 3, 3, 3, n, n)*sqrt(1f0/(3^3*n))/2;
-                 t[2,2,2,:,:] .= t[2,2,2,:,:] + I; t)
-    M()  = SkipConnection(Conv(idinit(c[2]), true, pad=1), (a,b)-> max.(a,b))
-
+    WR  =          Conv((4,4,4), c[1]=>c[2],  bias=false, stride=2, pad=1)
+    WP  = ConvTranspose((4,4,4), c[2]=>cout,  bias=true,  stride=2, pad=1)
+    M() = SkipConnection(Chain(relu, Conv((3,3,3), c[2]=>c[2], bias=true, pad=1)), +)
     nrm = InstanceNorm(c[2])
 
     if length(c)>2
-        net = Chain(WR, nrm, M(), M(), SkipConnection(BUnet3(c[2:end]), +),
-                    M(), M(), WP)
+        net = Chain(WR, nrm, M(), M(), SkipConnection(BUnet3(c[2:end]), +), M(), M(), WP)
     else
         net = Chain(WR, nrm, M(), M(), M(), M(), WP)
     end
@@ -113,7 +124,7 @@ be avaiable at the time of loading.
 function loadnet(filename)
     print("Loading ", filename)
     sett = JLD2.load(filename, "settings")
-    sett = (sett[1:2]..., pBUnet3) # Temporary fix
+    #sett = (sett[1:2]..., pBUnet3) # Temporary fix
     net  = sett[3](sett[1]...; sett[2]...)
     W1   = JLD2.load(filename, "W")
     W0   = Flux.trainables(net)
