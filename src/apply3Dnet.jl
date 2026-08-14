@@ -2,56 +2,43 @@ function segment3D(P,net,sett)
     print(basename(P)," ")
     nii = niread(P)
     X   = Float32.(nii.raw[:,:,:,1])
-    X   = reshape(X,(size(X)...,1)) #.* (length(X)/sum(X))
+    X   = reshape(X,(size(X)[1:3]...,size(X,4),1)) #.* (length(X)/sum(X))
     #X[~isfinite(X)] .= 0
     mat = NIfTI.getaffine(nii)
     vx2 = sqrt.(sum(mat[1:3,1:3].^2,dims=1))
-    d2  = size(X)
+    d2  = size(X)[1:3]
 
+    # Restrictions need even-sized voxel dimensions, so see how many
+    # are done and make the image dimensions a multiple of 2^n.
     nc       = sett[2].cout
     divby    = 2^(length(sett[1][1])-1)
 
     if false
-        function starts(di,dp)
-            ((1:ceil(2*di/dp)).-1).*dp/2 .- dp/2
-        end
-
-        Y   = similar(X,(d2[1],d2[2],d2[3],nc,1))
-        W   = zeros(Float32,d2[1],d2[2],d2[3])
-        dn = Int64.(floor.(d2[1:3]./divby).*divby)
-        ns = Int64.(ceil.(d2[1:3]./dn))
-        getsc(d,dn,ns) = (ns==1 ? 0f0 : (d-dn)/(ns-1))
-        sc = getsc.(d2[1:3],dn,ns)
-        #print(dn," ", ns, " ", sc, "\n")
-        for k=1:ns[3]
-            for j=1:ns[2]
-                for i=1:ns[1]
-                    ii = ((1:dn[1]).+Int64(round((i-1)*sc[1])),
-                          (1:dn[2]).+Int64(round((j-1)*sc[2])),
-                          (1:dn[3]).+Int64(round((k-1)*sc[3])))
-
-                    Y[ii...,:,:] .+= net(X[ii...,:,:])
-                    W[ii...] .+= 1
-                    print(".")
-                end
-            end
-        end
-        Y .= Flux.softmax(Y./W, dims=4)
-    else
+        # Work with original voxel sizes
         function reflect(i, d)
             j = mod(i-1, 2d)
             b = UInt64((j<d) ? j+1 : 2d-j)
         end
 
-        dn = Int64.(ceil.(d2[1:3]./divby).*divby)
-        t  = Int64.(ceil.((dn[1:3] .- d2[1:3])./2))
-        x  = similar(X,(dn...,size(X,4),1))
+        dn  = Int64.(ceil.(d2[1:3]./divby).*divby)
+        t   = Int64.(ceil.((dn[1:3] .- d2[1:3])./2))
+        x   = similar(X,(dn...,size(X,4),1))
         x[1:dn[1],1:dn[2],1:dn[3],:,1] = X[reflect.((1:dn[1]).-t[1],d2[1]),
                                            reflect.((1:dn[2]).-t[2],d2[2]),
                                            reflect.((1:dn[3]).-t[3],d2[3]),:,1]
-        y  = net(x)
-        Y  = Flux.softmax(y[(1:d2[1]).+t[1], (1:d2[2]).+t[2], (1:d2[3]).+t[3],:,1],
-                          dims=4)
+        y   = net(x)
+        Y   = Flux.softmax(y[(1:d2[1]).+t[1], (1:d2[2]).+t[2], (1:d2[3]).+t[3],:,1], dims=4)
+    else
+        # Work with 1 mm isotropic voxels
+        # todo: generalise to arbitrary voxel sizes (and orientations)
+
+        dn  = ceil.(d2[1:3].*vx2)
+        dn  = (Int64.(ceil.(dn[1:3]./divby).*divby)...,)
+        Aff = Float32.([1/vx2[1] 0 0 0; 0 1/vx2[2] 0 0; 0 0 1/vx2[3] 0; 0 0 0 1])
+        x   = affine_pull(X, inv(Aff), dn, Settings(1,1,1))
+        y   = net(x)
+        y   = affine_pull(y,     Aff,  d2, Settings(1,1,1))
+        Y   = Flux.softmax(y, dims=4)
     end
 
     hdr           = deepcopy(nii.header)

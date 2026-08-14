@@ -1,5 +1,6 @@
 module SPMmisc
 using Flux, JLD2, NIfTI, LinearAlgebra
+using PushPull
 
 include("networks.jl")
 include("apply2Dnet.jl")
