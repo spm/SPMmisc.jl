@@ -7,7 +7,7 @@ end
 function segment2D(P,net,sett)
     print(basename(P)," ")
     nii = niread(P)
-    X   = Float32.(nii.raw[:,:,:,1])
+    X   = Float32.(nii.raw[:,:,:,1]).*nii.header.scl_slope .+ nii.header.scl_inter
     mat = NIfTI.getaffine(nii)
     vx2 = sqrt.(sum(mat[1:3,1:3].^2,dims=1))
     d2  = size(X)

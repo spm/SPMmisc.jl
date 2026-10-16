@@ -1,11 +1,11 @@
 function segment3D(P,net,sett)
     print(basename(P)," ")
     nii = niread(P)
-    X   = Float32.(nii.raw[:,:,:,1])
+    X   = Float32.(nii.raw[:,:,:,1]).*nii.header.scl_slope .+ nii.header.scl_inter
     X   = reshape(X,(size(X)[1:3]...,size(X,4),1)) #.* (length(X)/sum(X))
     #X[~isfinite(X)] .= 0
     mat = NIfTI.getaffine(nii)
-    vx2 = sqrt.(sum(mat[1:3,1:3].^2,dims=1))
+    vx2 = sqrt.(sum(mat[1:3,1:3].^2,dims=1))[:]
     d2  = size(X)[1:3]
 
     # Restrictions need even-sized voxel dimensions, so see how many
@@ -34,7 +34,7 @@ function segment3D(P,net,sett)
 
         dn  = ceil.(d2[1:3].*vx2)
         dn  = (Int64.(ceil.(dn[1:3]./divby).*divby)...,)
-        Aff = Float32.([1/vx2[1] 0 0 0; 0 1/vx2[2] 0 0; 0 0 1/vx2[3] 0; 0 0 0 1])
+        Aff = Float32.([vx2[1] 0 0 0; 0 vx2[2] 0 0; 0 0 vx2[3] 0; 0 0 0 1])
         x   = affine_pull(X, inv(Aff), dn, Settings(1,1,1))
         y   = net(x)
         y   = affine_pull(y,     Aff,  d2, Settings(1,1,1))
