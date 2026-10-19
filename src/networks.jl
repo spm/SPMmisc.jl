@@ -1,11 +1,10 @@
 
 function RUnet2(c::Vector; cout=c[1])
     nonlin = identity
-    WR     =          Conv((4,4), c[1]=>c[2],  bias=false, stride=2, pad=(1,1,1,1))
-    WP     = ConvTranspose((4,4), c[2]=>cout,  bias=true,  stride=2, pad=(1,1,1,1))
-    idinit(n) = randn(Float32, 3, 3, n, n)*sqrt(1f0/(3*3*n))/2;
-    M()    = SkipConnection(Conv(idinit(c[2]), true, pad=1), (a,b)-> max.(a,b))
-    nrm    = InstanceNorm(c[2])
+    WR  =          Conv((4,4), c[1]=>c[2],  bias=false, stride=2, pad=(1,1,1,1))
+    WP  = ConvTranspose((4,4), c[2]=>cout,  bias=true,  stride=2, pad=(1,1,1,1))
+    M() = SkipConnection(Chain(relu, Conv((3,3), c[2]=>c[2], bias=true, pad=1)), +)
+    nrm = InstanceNorm(c[2])
 
     if length(c)>2
         net = Chain(WR, nrm, M(), M(),
@@ -15,32 +14,27 @@ function RUnet2(c::Vector; cout=c[1])
     end
     return net
 end
-
-
 function pRUnet2(c::Vector; cout=c[1])
     net = Chain(scalnorm, RUnet2(c, cout=cout)...)
 end
 
-function RUnet_old3(c::Vector; cout=c[1])
-    WR     =          Conv((2,2,2), c[1]=>c[2],  bias=true,  stride=2)
-    WP     = ConvTranspose((2,2,2), c[2]=>cout,  bias=true,  stride=2)
 
-    idinit(n) = (t=randn(Float32, 3, 3, 3, n, n)*sqrt(1f0/(3^3*n))/2;
-                 t[2,2,2,:,:] .= t[2,2,2,:,:] + I; t)
-    M()  = SkipConnection(Conv(idinit(c[2]), true, pad=1), (a,b)-> max.(a,b))
-
+function RUnet3old(c::Vector; cout=c[1])
+    WR  =          Conv((2,2,2), c[1]=>c[2],  bias=false,  stride=2)
+    WP  = ConvTranspose((2,2,2), c[2]=>cout,  bias=true,  stride=2)
+    M() = SkipConnection(Chain(relu, Conv((3,3,3), c[2]=>c[2], bias=true, pad=1)), +)
     nrm = InstanceNorm(c[2])
 
     if length(c)>2
-        net = Chain(WR, nrm, M(), M(), SkipConnection(RUnet_old3(c[2:end]), +),
+        net = Chain(WR, nrm, M(), M(), SkipConnection(RUnet3old(c[2:end]), +),
                     M(), M(), WP)
     else
         net = Chain(WR, nrm, M(), M(), M(), M(), WP)
     end
     return net
 end
-function pRUnet_old3(c::Vector; cout=c[1])
-    net = Chain(scalnorm, RUnet_old3(c, cout=cout)...)
+function pRUnet3old(c::Vector; cout=c[1])
+    net = Chain(scalnorm, RUnet3old(c, cout=cout)...)
 end
 
 
