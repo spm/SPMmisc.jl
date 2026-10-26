@@ -139,7 +139,12 @@ Network architectures are described by some function that must
 be avaiable at the time of loading.
 """
 function loadnet(filename)
-    print("Loading ", filename)
+    if isempty(dirname(filename))
+        filename = joinpath(@__DIR__, "..", "artifacts", filename)
+    end
+
+    print("Loading ", basename(filename))
+
     sett = JLD2.load(filename, "settings")
     #sett = (sett[1:2]..., pBUnet3) # Temporary fix
     net  = sett[3](sett[1]...; sett[2]...)
@@ -157,6 +162,6 @@ function savenet(net, filename, sett)
     JLD2.jldsave(filename; W = W, settings=sett)
 end
 
-export loadnet, RUnet2, pRUnet2, RUnet3, pRUnet3, BUnet3, pBUnet3, scalnorm
+export loadnet, RUnet2, pRUnet2, RUnet3, pRUnet3, BUnet3, pBUnet3, RUnnnet3, scalnorm
 
 

@@ -43,12 +43,12 @@ function segment2D(P,net,sett)
 end
 
 """
-    apply2Dnet(network::String,images::Array{String})
+    apply2Dnet(images::Array{String}, network::String)
 
 Apply a 2D segmentation network to slices of images. Results
 are saved to a 4D NIfTI file called c00*.nii.
 """
-function apply2Dnet(network::String,images::Array{String})
+function apply2Dnet(images::Array{String}, network::String)
     net,sett = loadnet(network)
     for f in images
         segment2D(f,net,sett)

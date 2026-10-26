@@ -1,85 +1,131 @@
-function segment3D(P,net,sett)
-    print(basename(P)," ")
-    nii = niread(P)
-    X   = Float32.(nii.raw[:,:,:,1]).*nii.header.scl_slope .+ nii.header.scl_inter
-    X   = reshape(X,(size(X)[1:3]...,size(X,4),1)) #.* (length(X)/sum(X))
-    #X[~isfinite(X)] .= 0
-    mat = NIfTI.getaffine(nii)
-    vx2 = sqrt.(sum(mat[1:3,1:3].^2,dims=1))[:]
-    d2  = size(X)[1:3]
+function parts(P)
+    ind = [1,1,1,1]
+    mch = match(r"^(?<name>[^,]*)$", P)
+    if mch == nothing
+        mch   = match(r"^(?<name>[^,]*)" * "," * r"(?<indices>[\d,]*)$", P)
+        if mch == nothing
+            error("Bollox")
+        end
+        fname   = mch[:name]
+        indices = mch[:indices]
+        for i=1:4
+            mch   = match(r"^(?<num>[^,]*)" * "," * r"(?<indices>[\d,]*)$", indices)
+            if mch == nothing
+                ind[i] = parse(Int64, indices)
+                break
+            end
+            ind[i] = parse(Int64, mch[:num])
+            indices = mch[:indices]
+        end
+    else
+        fname = mch[:name]
+    end
+    return fname, ind
+end
+
+
+function NNseg3D(P, net, sett, fname)
+    print(fname," ")
+
+    nam,ind = parts(P[1])
+    nii = niread(nam)
+    Xi  = Float32.(nii.raw[:,:,:,ind...]).*nii.header.scl_slope .+ nii.header.scl_inter
+    Xi  = reshape(Xi,(size(Xi)[1:3]...,1,1))
+    X    = Xi
+    mat  = NIfTI.getaffine(nii)
+    vx2  = sqrt.(sum(mat[1:3,1:3].^2,dims=1))
+    d2   = size(X)[1:3]
+    hdr  = nii.header
+    fnam = nam
+
+    print("."); flush(stdout)
+
+    for i=2:length(P)
+        nam,ind = parts(P[i])
+        nii = niread(nam)
+        Xi  = Float32.(nii.raw[:,:,:,ind...]).*nii.header.scl_slope .+ nii.header.scl_inter
+        Xi  = reshape(Xi,(size(Xi)[1:3]...,1,1))
+        X   = cat(X, Xi, dims=4)
+        print("."); flush(stdout)
+    end
 
     # Restrictions need even-sized voxel dimensions, so see how many
     # are done and make the image dimensions a multiple of 2^n.
     nc       = sett[2].cout
     divby    = 2^(length(sett[1][1])-1)
 
-    if false
-        # Work with original voxel sizes
-        function reflect(i, d)
-            j = mod(i-1, 2d)
-            b = UInt64((j<d) ? j+1 : 2d-j)
-        end
-
-        dn  = Int64.(ceil.(d2[1:3]./divby).*divby)
-        t   = Int64.(ceil.((dn[1:3] .- d2[1:3])./2))
-        x   = similar(X,(dn...,size(X,4),1))
-        x[1:dn[1],1:dn[2],1:dn[3],:,1] = X[reflect.((1:dn[1]).-t[1],d2[1]),
-                                           reflect.((1:dn[2]).-t[2],d2[2]),
-                                           reflect.((1:dn[3]).-t[3],d2[3]),:,1]
-        y   = net(x)
-        Y   = Flux.softmax(y[(1:d2[1]).+t[1], (1:d2[2]).+t[2], (1:d2[3]).+t[3],:,1], dims=4)
-    else
-        # Work with 1 mm isotropic voxels
-        # todo: generalise to arbitrary voxel sizes (and orientations)
-
-        dn  = ceil.(d2[1:3].*vx2)
-        dn  = (Int64.(ceil.(dn[1:3]./divby).*divby)...,)
-        Aff = Float32.([vx2[1] 0 0 0; 0 vx2[2] 0 0; 0 0 vx2[3] 0; 0 0 0 1])
-        x   = affine_pull(X, inv(Aff), dn, Settings(1,1,1))
-        y   = net(x)
-        y   = affine_pull(y,     Aff,  d2, Settings(1,1,1))
+    dn  = ceil.(d2[1:3].*vx2[:])
+    dn  = (Int64.(ceil.(dn[1:3]./divby).*divby)...,)
+    Aff = Float32.([vx2[1] 0 0 0; 0 vx2[2] 0 0; 0 0 vx2[3] 0; 0 0 0 1])
+    x   = affine_pull(X, inv(Aff), dn, Settings(1,1,1))
+    print("o"); flush(stdout)
+    y   = net(x)
+    print("."); flush(stdout)
+    y   = affine_pull(y,     Aff,  d2, Settings(1,1,1))
+    if size(y)[4] > 1
         Y   = Flux.softmax(y, dims=4)
+        Y   = Y[:,:,:,1:(end-1),:]
+    else
+        Y   = Flux.sigmoid(y)
     end
 
-    hdr           = deepcopy(nii.header)
-    hdr.descrip   = NIfTI.string_tuple("NN segmented", 80)
-    if true
-        # Write as UInt8
-        hdr.datatype  = 2
-        hdr.scl_slope = 1/255
-        hdr.scl_inter = 0
-        hdr.bitpix    = 8
-        Y             = UInt8.(round.(Y./hdr.scl_slope))
-    else
-        # Write as Float32
-        hdr.datatype  = 16
-        hdr.scl_slope = 1
-        hdr.scl_inter = 0
-        hdr.bitpix    = 32
-    end
+    hdr.descrip   = NIfTI.string_tuple("NNseg3D", 80)
+
+    # Write as UInt8
+    hdr.datatype  = 2
+    hdr.scl_slope = 1/255
+    hdr.scl_inter = 0
+    hdr.bitpix    = 8
+    Y             = UInt8.(round.(Y./hdr.scl_slope))
     dim           = [hdr.dim...]
     dim[1]        = ndims(Y)
-    dim[5]        = size(Y,4)-1
+    dim[5]        = size(Y,4)
     dim[6:end]   .=1
     hdr.dim       = (dim...,)
 
-    nio           = NIVolume(hdr,Y[:,:,:,1:(end-1)])
-    fname         = joinpath(dirname(P), "c00" * basename(P))
-    niwrite(fname,nio)
+    nio           = NIVolume(hdr,Y[:,:,:,1:end])
+    niwrite(fname, nio)
     print("\n"); flush(stdout)
     return fname
 end
 
+
 """
-    apply3net(network::String,images::Array{String})
+    do_depth(images::Array{Array{String}}, network::String="CorticalDepth.jld2")
+
+Apply a 3D segmentation network to GM and WM images. Results
+are saved to a NIfTI file called depth_*.nii.
+"""
+function do_depth(images, network::String="CorticalDepth.jld2")
+    net,sett = loadnet(network)
+    for f in images
+        if isa(f,String)
+            f = [f,]
+        end
+        fnam,ind = parts(f[1])
+        fname    = joinpath(dirname(fnam), "depth_" * basename(fnam)[3:end])
+        NNseg3D(f, net, sett, fname)
+    end
+end
+
+
+"""
+    apply3net(images::Array{String}, network::String)
+
+    apply3net(images::Array{Array{String}}, network::String="GWC-any.jld2")
 
 Apply a 3D segmentation network to images. Results
 are saved to a 4D NIfTI file called c00*.nii.
 """
-function apply3Dnet(network::String,images::Array{String})
+function apply3Dnet(images, network::String="GWC-any.jld2")
     net,sett = loadnet(network)
     for f in images
-        segment3D(f,net,sett)
+        if isa(f,String)
+            f = [f,]
+        end
+        fnam,ind = parts(f[1])
+        fname    = joinpath(dirname(fnam), "c00" * basename(fnam))
+        NNseg3D(f, net, sett, fname)
     end
 end
 
