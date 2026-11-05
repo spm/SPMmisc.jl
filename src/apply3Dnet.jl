@@ -29,6 +29,8 @@ function NNseg3D(P, net, sett, fname)
 
     nam,ind = parts(P[1])
     nii = niread(nam)
+    @assert(size(nii.raw,4) >= ind)
+    d1   = [size(nii.raw,1),size(nii.raw,2), size(nii.raw,3)]
     if nii.header.scl_slope != 0
         Xi  = Float32.(nii.raw[:,:,:,ind...]).*nii.header.scl_slope
     end
@@ -46,6 +48,10 @@ function NNseg3D(P, net, sett, fname)
     for i=2:length(P)
         nam,ind = parts(P[i])
         nii  = niread(nam)
+        @assert(size(nii.raw,4) >= ind)
+        @assert(size(nii.raw,1) == d[1])
+        @assert(size(nii.raw,2) == d[2])
+        @assert(size(nii.raw,3) == d[3])
         if nii.header.scl_slope != 0
             Xi  = Float32.(nii.raw[:,:,:,ind...]).*nii.header.scl_slope
         end
