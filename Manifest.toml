@@ -803,7 +803,7 @@ version = "1.4.0"
 deps = ["Artifacts", "ChainRulesCore", "FFTW", "LazyArtifacts", "Libdl", "Zygote"]
 git-tree-sha1 = "1a2c408255df81e5a43f27cdea4a2e399564a274"
 uuid = "474945d8-a732-43ea-9020-95184c2278ed"
-version = "0.1.2"
+version = "0.1.4"
 
     [deps.PushPull.extensions]
     PushPullCUDAExt = "CUDA"
