@@ -139,6 +139,8 @@ Network architectures are described by some function that must
 be avaiable at the time of loading.
 """
 function loadnet(filename)
+    # In Julia-1.10.0, dirname(filename) gives "" (not ".").
+    # Results from other versions may differ, so this is one to watch.
     if isempty(dirname(filename))
         filename = joinpath(@__DIR__, "..", "artifacts", filename)
     end

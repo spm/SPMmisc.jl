@@ -29,9 +29,12 @@ function NNseg3D(P, net, sett, fname)
 
     nam,ind = parts(P[1])
     nii = niread(nam)
-    Xi  = Float32.(nii.raw[:,:,:,ind...]).*nii.header.scl_slope .+ nii.header.scl_inter
-    Xi  = reshape(Xi,(size(Xi)[1:3]...,1,1))
-    X    = Xi
+    if nii.header.scl_slope != 0
+        Xi  = Float32.(nii.raw[:,:,:,ind...]).*nii.header.scl_slope
+    end
+    Xi .+= nii.header.scl_inter
+    Xi   = reshape(Xi,(size(Xi)[1:3]...,1,1))
+    X    = nan2zero(Xi)
     mat  = NIfTI.getaffine(nii)
     vx2  = sqrt.(sum(mat[1:3,1:3].^2,dims=1))
     d2   = size(X)[1:3]
@@ -42,10 +45,13 @@ function NNseg3D(P, net, sett, fname)
 
     for i=2:length(P)
         nam,ind = parts(P[i])
-        nii = niread(nam)
-        Xi  = Float32.(nii.raw[:,:,:,ind...]).*nii.header.scl_slope .+ nii.header.scl_inter
-        Xi  = reshape(Xi,(size(Xi)[1:3]...,1,1))
-        X   = cat(X, Xi, dims=4)
+        nii  = niread(nam)
+        if nii.header.scl_slope != 0
+            Xi  = Float32.(nii.raw[:,:,:,ind...]).*nii.header.scl_slope
+        end
+        Xi .+= nii.header.scl_inter
+        Xi   = reshape(Xi,(size(Xi)[1:3]...,1,1))
+        X    = cat(X, nan2zero(Xi), dims=4)
         print("."); flush(stdout)
     end
 
